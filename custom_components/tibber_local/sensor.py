@@ -1,11 +1,12 @@
 import logging
+from datetime import timedelta
 
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import StateType
-from homeassistant.util import slugify
+from homeassistant.util import dt as dt_util, slugify
 
 from . import TibberLocalDataUpdateCoordinator, TibberLocalEntity
 from .const import (
@@ -78,10 +79,39 @@ class TibberLocalSensor(TibberLocalEntity, SensorEntity):
         else:
             self._attr_suggested_display_precision = 2
 
+        # 'SensorDeviceClass.UPTIME' bookkeeping (for the dedicated 'node_uptime' sensor):
+        # remember the counter value we derived the boot-time from, so it is only
+        # re-derived when the counter actually changes
+        self._uptime_ms_last: float | None = None
+        self._uptime_dt = None
+
     @property
     def native_value(self) -> StateType:
         if self.coordinator.data is not None:
-            return self.coordinator.get_sensor_value(self.entity_description.tag)
+            value = self.coordinator.get_sensor_value(self.entity_description.tag)
+
+            # 'SensorDeviceClass.UPTIME' expects the boot-time as a tz-aware datetime - but the
+            # bridge reports the node uptime as a raw millisecond counter -> convert it
+            if self.entity_description.device_class == SensorDeviceClass.UPTIME and value is not None:
+                try:
+                    ms_count = float(value)
+                except (TypeError, ValueError):
+                    _LOGGER.warning(f"could not convert {self.entity_description.key} value '{value}' into a boot-time datetime!")
+                    self._uptime_ms_last = None
+                    self._uptime_dt = None
+                    return None
+
+                # the bridge can report the same uptime counter across consecutive metrics
+                # updates (measured: the value changes only every ~30 min in steady operation,
+                # never per message) -> only re-derive the boot-time when the counter itself
+                # changes, otherwise the state would drift forward by the metrics-update
+                # interval on every update
+                if ms_count != self._uptime_ms_last or self._uptime_dt is None:
+                    self._uptime_ms_last = ms_count
+                    self._uptime_dt = dt_util.utcnow() - timedelta(milliseconds=ms_count)
+                return self._uptime_dt
+
+            return value
         return None
 
     @property

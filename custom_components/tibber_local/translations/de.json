@@ -194,6 +194,7 @@
       "node_avg_rssi": {"name":  "Node Ø RSSI"},
       "node_avg_lqi": {"name":  "Node Ø Signalqualität"},
       "node_radio_tx_power": {"name":  "Node Sendeleistung"},
+      "node_uptime": {"name":  "Node Uptime"},
       "node_uptime_ms": {"name":  "Node Uptime"},
       "node_meter_msg_count_sent": {"name":  "Zähler: Node Messungen gesendet"},
       "node_meter_pkg_count_sent": {"name":  "Zähler: Node Messpakete gesendet"},

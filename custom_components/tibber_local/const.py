@@ -133,8 +133,10 @@ class ExtSensorEntityDescription(SensorEntityDescription):
 
     @classmethod
     def from_tag(cls, tag: SensorTag, **kwargs):
-        return cls(key=f"{tag.key}_in_k" if tag.divide_by_1000 else tag.key, tag=tag, **kwargs)
-    
+        # an explicit 'key=' kwarg decouples the sensor's key (-> unique_id / entity_id)
+        # from the tag key, e.g. to expose one bridge metric as multiple sensors
+        key: str | None = kwargs.pop("key", None) or (f"{tag.key}_in_k" if tag.divide_by_1000 else tag.key)
+        return cls(key=key, tag=tag, **kwargs)
 
 SENSOR_TYPES = [
 
@@ -561,6 +563,19 @@ SENSOR_TYPES = [
         icon="mdi:timer-outline",
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC
+    ),
+    # the same bridge metric ('node_uptime_ms' in the metrics data) exposed as a dedicated
+    # boot-time sensor; its 'key' is decoupled from the tag key, so it gets its own
+    # entity_id/unique_id and the ms counter above keeps its entity, statistics and consumers.
+    # NOTE: the 'SensorDeviceClass.UPTIME' value is only re-derived when the raw ms counter
+    # actually changes (see sensor.py).
+    ExtSensorEntityDescription.from_tag(
+        tag=SensorTag(key="node_uptime_ms", section=METRICS_KEY),
+        name="node_uptime",
+        key="node_uptime",
+        icon="mdi:timer-outline",
+        device_class=SensorDeviceClass.UPTIME,
         entity_category=EntityCategory.DIAGNOSTIC
     ),
     ExtSensorEntityDescription.from_tag(
