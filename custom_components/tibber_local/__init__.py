@@ -4,7 +4,6 @@ from datetime import timedelta
 from numbers import Number
 from typing import Final, Any
 
-import voluptuous as vol
 from aiohttp import ClientConnectionError
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -64,7 +63,6 @@ from .entity import CustomFriendlyNameEntity
 from .tibber_client import TibberLocalBridge
 
 _LOGGER = logging.getLogger(__name__)
-CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
 PLATFORMS: Final = [Platform.SENSOR]
 WEBSOCKET_WATCHDOG_INTERVAL: Final = timedelta(seconds=64)
@@ -200,6 +198,7 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
                 hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STARTED, coordinator.start_watchdog)
 
         config_entry.async_on_unload(config_entry.add_update_listener(entry_update_listener))
+        _LOGGER.info(f"async_setup_entry(): integration setup complete for {config_entry.entry_id}")
         return True
 
 async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
